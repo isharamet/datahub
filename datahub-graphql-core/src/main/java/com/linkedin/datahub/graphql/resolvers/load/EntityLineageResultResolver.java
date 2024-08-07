@@ -18,6 +18,7 @@ import com.linkedin.datahub.graphql.generated.LineageInput;
 import com.linkedin.datahub.graphql.generated.LineageRelationship;
 import com.linkedin.datahub.graphql.generated.Restricted;
 import com.linkedin.datahub.graphql.types.common.mappers.UrnToEntityMapper;
+import com.linkedin.metadata.Constants;
 import com.linkedin.metadata.graph.SiblingGraphService;
 import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
@@ -57,6 +58,10 @@ public class EntityLineageResultResolver
     Urn urn = UrnUtils.getUrn(((Entity) environment.getSource()).getUrn());
     final LineageInput input = bindArgument(environment.getArgument("input"), LineageInput.class);
 
+    if (urn.getEntityType().equals(Constants.RESTRICTED_ENTITY_NAME)) {
+      urn = _restrictedService.decryptRestrictedUrn(urn);
+    }
+
     final LineageDirection lineageDirection = input.getDirection();
     @Nullable final Integer start = input.getStart(); // Optional!
     @Nullable final Integer count = input.getCount(); // Optional!
@@ -94,8 +99,7 @@ public class EntityLineageResultResolver
                 .forEach(
                     rel -> {
                       if (_authorizationConfiguration.getView().isEnabled()
-                          && !AuthorizationUtils.canViewRelationship(
-                              context.getOperationContext(), rel.getEntity(), urn)) {
+                          && !AuthorizationUtils.canView(context.getOperationContext(), rel.getEntity())) {
                         restrictedUrns.add(rel.getEntity());
                       }
                     });
